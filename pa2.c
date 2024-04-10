@@ -183,7 +183,7 @@ pick_next:
 		 */
 		list_del_init(&next->list);
 	}
-
+	printf("111");
 	/* Return the process to run next */
 	return next;
 }
@@ -228,7 +228,7 @@ struct scheduler stcf_scheduler = {
 	/* You need to check the newly created processes to implement STCF.
 	 * Have a look at @forked() callback.
 	 */
-
+	
 	/* Obviously, you should implement stcf_schedule() and attach it here */
 };
 
