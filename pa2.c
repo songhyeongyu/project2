@@ -265,6 +265,67 @@ struct scheduler sjf_scheduler = {
 /***********************************************************************
  * STCF scheduler
  ***********************************************************************/
+static void stcf_fork(struct process *new){
+	
+}
+static void stcf_exit(struct process *new){
+
+}
+static struct process *stcf_schedule(void)
+{
+	/**
+	 * Implement your own SJF scheduler here.
+	 */
+	struct process *next = NULL;
+	struct process *compare = NULL;
+	/* You may inspect the situation by calling dump_status() at any time */
+	// dump_status();
+
+	/**
+	 * When there was no process to run in the previous tick (so does
+	 * in the very beginning of the simulation), there will be
+	 * no @current process. In this case, pick the next without examining
+	 * the current process. Also, the current process can be blocked
+	 * while acquiring a resource. In this case just pick the next as well.
+	 */
+	if (!current || current->status == PROCESS_BLOCKED) {
+		goto pick_next;
+	}
+
+	/* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) {
+		return current;
+	}
+
+pick_next:
+	/* Let's pick a new process to run next */
+
+	if (!list_empty(&readyqueue)) {
+		/**
+		 * If the ready queue is not empty, pick the first process
+		 * in the ready queue
+		 */
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(compare,&readyqueue,list){
+		if(next->age < compare->lifespan){
+			printf("next age %d\n",compare->age);
+			stcf_exit(compare);
+			printf("1111325jmganm\n");
+		}
+		
+		}
+		/**
+		 * Detach the process from the ready queue. Note that we use 
+		 * list_del_init() over list_del() to maintain the list head tidy.
+		 * Otherwise, the framework will complain (assert) on process exit.
+		 */
+		list_del_init(&next->list);
+	}
+	
+	/* Return the process to run next */
+	return next;
+	
+}
 struct scheduler stcf_scheduler = {
 	.name = "Shortest Time-to-Complete First",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
@@ -273,8 +334,12 @@ struct scheduler stcf_scheduler = {
 	/* You need to check the newly created processes to implement STCF.
 	 * Have a look at @forked() callback.
 	 */
+	.forked = stcf_fork,
+	.exiting = stcf_exit,
+
 	
 	/* Obviously, you should implement stcf_schedule() and attach it here */
+	.schedule = stcf_schedule,
 };
 
 /***********************************************************************
@@ -284,8 +349,8 @@ struct scheduler rr_scheduler = {
 	.name = "Round-Robin",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
 	.release = fcfs_release, /* Use the default FCFS release() */
-
 	/* Obviously, ... */
+	
 };
 
 /***********************************************************************
