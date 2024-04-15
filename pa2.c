@@ -60,7 +60,8 @@ static bool fcfs_acquire(int resource_id)
 {
 	struct resource *r = resources + resource_id;
 
-	if (!r->owner) {
+	if (!r->owner)
+	{
 		/* This resource is not owned by any one. Take it! */
 		r->owner = current;
 		return true;
@@ -102,7 +103,8 @@ static void fcfs_release(int resource_id)
 	r->owner = NULL;
 
 	/* Let's wake up ONE waiter (if exists) that came first */
-	if (!list_empty(&r->waitqueue)) {
+	if (!list_empty(&r->waitqueue))
+	{
 		struct process *waiter = list_first_entry(&r->waitqueue, struct process, list);
 
 		/**
@@ -146,7 +148,6 @@ static void fcfs_finalize(void)
 static struct process *fcfs_schedule(void)
 {
 	struct process *next = NULL;
-	
 
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
@@ -158,19 +159,22 @@ static struct process *fcfs_schedule(void)
 	 * the current process. Also, the current process can be blocked
 	 * while acquiring a resource. In this case just pick the next as well.
 	 */
-	if (!current || current->status == PROCESS_BLOCKED) {
+	if (!current || current->status == PROCESS_BLOCKED)
+	{
 		goto pick_next;
 	}
 
 	/* The current process has remaining lifetime. Schedule it again */
-	if (current->age < current->lifespan) {
+	if (current->age < current->lifespan)
+	{
 		return current;
 	}
 
 pick_next:
 	/* Let's pick a new process to run next */
 
-	if (!list_empty(&readyqueue)) {
+	if (!list_empty(&readyqueue))
+	{
 		/**
 		 * If the ready queue is not empty, pick the first process
 		 * in the ready queue
@@ -178,7 +182,7 @@ pick_next:
 		next = list_first_entry(&readyqueue, struct process, list);
 
 		/**
-		 * Detach the process from the ready queue. Note that we use 
+		 * Detach the process from the ready queue. Note that we use
 		 * list_del_init() over list_del() to maintain the list head tidy.
 		 * Otherwise, the framework will complain (assert) on process exit.
 		 */
@@ -218,31 +222,36 @@ static struct process *sjf_schedule(void)
 	 * the current process. Also, the current process can be blocked
 	 * while acquiring a resource. In this case just pick the next as well.
 	 */
-	if (!current || current->status == PROCESS_BLOCKED) {
+	if (!current || current->status == PROCESS_BLOCKED)
+	{
 		goto pick_next;
 	}
 
 	/* The current process has remaining lifetime. Schedule it again */
-	if (current->age < current->lifespan) {
+	if (current->age < current->lifespan)
+	{
 		return current;
 	}
 
 pick_next:
 	/* Let's pick a new process to run next */
 
-	if (!list_empty(&readyqueue)) {
+	if (!list_empty(&readyqueue))
+	{
 		/**
 		 * If the ready queue is not empty, pick the first process
 		 * in the ready queue
 		 */
 		next = list_first_entry(&readyqueue, struct process, list);
-		list_for_each_entry(compare,&readyqueue,list){
-			if(compare->lifespan < next->lifespan){
+		list_for_each_entry(compare, &readyqueue, list)
+		{
+			if (compare->lifespan < next->lifespan)
+			{
 				next = compare;
 			}
 		}
 		/**
-		 * Detach the process from the ready queue. Note that we use 
+		 * Detach the process from the ready queue. Note that we use
 		 * list_del_init() over list_del() to maintain the list head tidy.
 		 * Otherwise, the framework will complain (assert) on process exit.
 		 */
@@ -251,22 +260,20 @@ pick_next:
 
 	/* Return the process to run next */
 	return next;
-	
 }
 
 struct scheduler sjf_scheduler = {
 	.name = "Shortest-Job First",
-	.acquire = fcfs_acquire,	/* Use the default FCFS acquire() */
-	.release = fcfs_release,	/* Use the default FCFS release() */
-	.schedule = sjf_schedule,	/* TODO: Assign your schedule function  
-								to this function pointer to activate
-								SJF in the simulation system */
+	.acquire = fcfs_acquire,  /* Use the default FCFS acquire() */
+	.release = fcfs_release,  /* Use the default FCFS release() */
+	.schedule = sjf_schedule, /* TODO: Assign your schedule function
+							  to this function pointer to activate
+							  SJF in the simulation system */
 };
 
 /***********************************************************************
  * STCF scheduler
  ***********************************************************************/
-
 
 static struct process *stcf_schedule(void)
 {
@@ -275,45 +282,44 @@ static struct process *stcf_schedule(void)
 	 */
 	struct process *next = NULL;
 	// int next_age = 0;
-	struct process *new = NULL;
+	struct process *pre = NULL;
 	struct process *tmp = NULL;
-	
+
 	// next_life = next->lifespan;
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
-	
 
-	if (!current || current->status == PROCESS_BLOCKED) {
-		
+	if (!current || current->status == PROCESS_BLOCKED)
+	{
+
 		goto pick_next;
 	}
 
-	
-	if (current->age < current->lifespan) {
+	if (current->age < current->lifespan)
+	{
 		return current;
 	}
 
 pick_next:
-	
 
-	if (!list_empty(&readyqueue)) {
-		
-		next = list_first_entry(&readyqueue, struct process, list);
-		list_for_each_entry_safe(new,tmp,&readyqueue,list){
-			if((new->lifespan- new->age) < (next->lifespan-next->age)){
-				list_move_tail(&new->list,&readyqueue);
-				new->status = PROCESS_READY;
-				next = new;
+	if (!list_empty(&readyqueue))
+	{
+
+		next = list_first_entry(&readyqueue, struct process, list); // readyqueue에서 가져옴
+		list_for_each_entry_safe(pre, tmp, &readyqueue, list) // readque에 들어있는 모든걸 확인
+		{
+			if ((pre->lifespan - pre->age) < (next->lifespan - next->age)) // readque에서 가져온 것보다 짧은 시간이 존재한다면
+			{	
+				list_move_tail(&pre->list, &readyqueue);
+				pre->status = PROCESS_READY;
+				next = pre; // next를 pre로 바꿔준다.
 			}
-			
 		}
-		
-		
+
 		list_del_init(&next->list);
 	}
-	
+
 	return next;
-	
 }
 struct scheduler stcf_scheduler = {
 	.name = "Shortest Time-to-Complete First",
@@ -330,12 +336,58 @@ struct scheduler stcf_scheduler = {
 /***********************************************************************
  * Round-robin scheduler
  ***********************************************************************/
+static struct process *rr_schedule(void)
+{
+	/**
+	 * Implement your own SJF scheduler here.
+	 */
+	struct process *next = NULL;
+	// int next_age = 0;
+	struct process *rr = NULL;
+	struct scheduler *rr_sched = NULL;
+	// struct process *tmp = NULL;
+
+	// next_life = next->lifespan;
+	/* You may inspect the situation by calling dump_status() at any time */
+	// dump_status();
+
+	if (!current || current->status == PROCESS_BLOCKED)
+	{
+
+		goto pick_next;
+	}
+
+	if (current->age < current->lifespan)
+	{
+		return current;
+	}
+
+pick_next:
+
+	if (!list_empty(&readyqueue))
+	{
+
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(rr, &readyqueue, list)
+		{	
+			
+			if(next == rr_sched->schedule){
+				
+			}
+			
+		}
+
+		list_del_init(&next->list);
+	}
+
+	return next;
+}
 struct scheduler rr_scheduler = {
 	.name = "Round-Robin",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
 	.release = fcfs_release, /* Use the default FCFS release() */
-	/* Obviously, ... */
-	
+							 /* Obviously, ... */
+	.schedule = rr_schedule
 };
 
 /***********************************************************************
