@@ -344,7 +344,8 @@ static struct process *rr_schedule(void)
 	struct process *next = NULL;
 	// int next_age = 0;
 	struct process *rr = NULL;
-	struct scheduler *rr_sched = NULL;
+	struct process *tmp = NULL;
+	// struct scheduler *rr_sched = NULL;
 	// struct process *tmp = NULL;
 
 	// next_life = next->lifespan;
@@ -368,16 +369,11 @@ pick_next:
 	{
 
 		next = list_first_entry(&readyqueue, struct process, list);
-		list_for_each_entry(rr, &readyqueue, list)
+		list_for_each_entry_safe(rr,tmp ,&readyqueue, list)
 		{	
-			
-			if(next == rr_sched->schedule){
-				
-			}
-			
+			list_del_init(&next->list);
 		}
 
-		list_del_init(&next->list);
 	}
 
 	return next;
