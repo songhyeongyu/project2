@@ -282,50 +282,43 @@ static struct process *stcf_schedule(void)
 	 */
 	struct process *next = NULL;
 	struct process *tmp = NULL;
-
-
+	//preemptive하다, 나보다 더 짧은 순간이 오면 그애를 pick한다.
 	if (!current || current->status == PROCESS_BLOCKED)
 	{
 		goto pick_next;
 	}
 
-	if(current->age < current->lifespan){
-	list_for_each_entry(tmp,&readyqueue,list){
-		if((current->lifespan - current->age) > (tmp->lifespan-tmp->age)){
-			// printf("current lifespan:%d\n",current->lifespan);
-			next = tmp;
-			// current->status = PROCESS_BLOCKED;
-			next->status = PROCESS_READY;
-			list_add(&current->list,&readyqueue);
-			current = next;
-			list_del_init(&next->list);
-			// printf("cuurent: %d\n",current->lifespan);
-			break;
+	if (current->age < current->lifespan)
+	{
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			if ((current->lifespan - current->age) > (tmp->lifespan - tmp->age))
+			{
+				next = tmp;
+				next->status = PROCESS_READY;
+				list_add(&current->list, &readyqueue);
+				current->status = PROCESS_BLOCKED;
+				current = next;
+				list_del_init(&next->list);
+				break;
+			}
 		}
-		
+		return current;
 	}
-	return current;
-	}
-	
-
 
 pick_next:
-	if(!list_empty(&readyqueue)){
-		next = list_first_entry(&readyqueue,struct process,list);
-		list_for_each_entry(tmp,&readyqueue,list){
-			if(tmp->lifespan < next->lifespan){
+	if (!list_empty(&readyqueue))
+	{
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			if (tmp->lifespan < next->lifespan)
+			{
 				next = tmp;
 			}
-			
 		}
 		list_del_init(&next->list);
 	}
-// stcf_next:
-	// if(!list_empty(&readyqueue)){
-	// 	// next = tmp;
-	// 	printf("tmplife: %d\n",tmp->lifespan);
-	// 	list_del_init(&next->list);
-	// }
 
 	return next;
 }
@@ -350,35 +343,28 @@ static struct process *rr_schedule(void)
 	 * Implement your own SJF scheduler here.
 	 */
 	struct process *next = NULL;
-	// int next_age = 0;
-	// struct process *rr = NULL;
-	// struct process *tmp = NULL;
-	// struct scheduler *rr_sched = NULL;
-	// struct process *tmp = NULL;
 
-	// next_life = next->lifespan;
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
-
+	//rr은 preemptive 하다, policy는 process가 실행 중 다른 process가 불리면 정지 현재 프로세스 정지 후 다른프로세스 완료, 다른 프로세스 다시 readyqueue에 넣기
 	if (!current || current->status == PROCESS_BLOCKED)
 	{
-
 		goto pick_next;
 	}
 
 	if (current->age < current->lifespan)
-	{
-		return current;
+	{	
+		list_move_tail(&current->list,&readyqueue);
+		goto pick_next;
 	}
+
 
 pick_next:
 
 	if (!list_empty(&readyqueue))
 	{
-
-		// list_for_each()
-		
-
+		next = list_first_entry(&readyqueue,struct process,list);
+		list_del_init(&next->list);
 	}
 
 	return next;
@@ -388,8 +374,7 @@ struct scheduler rr_scheduler = {
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
 	.release = fcfs_release, /* Use the default FCFS release() */
 							 /* Obviously, ... */
-	.schedule = rr_schedule
-};
+	.schedule = rr_schedule};
 
 /***********************************************************************
  * Priority scheduler
