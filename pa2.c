@@ -281,43 +281,51 @@ static struct process *stcf_schedule(void)
 	 * Implement your own SJF scheduler here.
 	 */
 	struct process *next = NULL;
-	// int next_age = 0;
-	struct process *pre = NULL;
 	struct process *tmp = NULL;
 
-	// next_life = next->lifespan;
-	/* You may inspect the situation by calling dump_status() at any time */
-	// dump_status();
 
 	if (!current || current->status == PROCESS_BLOCKED)
 	{
-
 		goto pick_next;
 	}
 
-	if (current->age < current->lifespan)
-	{
-		return current;
+	if(current->age < current->lifespan){
+	list_for_each_entry(tmp,&readyqueue,list){
+		if((current->lifespan - current->age) > (tmp->lifespan-tmp->age)){
+			// printf("current lifespan:%d\n",current->lifespan);
+			next = tmp;
+			// current->status = PROCESS_BLOCKED;
+			next->status = PROCESS_READY;
+			list_add(&current->list,&readyqueue);
+			current = next;
+			list_del_init(&next->list);
+			// printf("cuurent: %d\n",current->lifespan);
+			break;
+		}
+		
 	}
+	return current;
+	}
+	
+
 
 pick_next:
-
-	if (!list_empty(&readyqueue))
-	{
-
-		next = list_first_entry(&readyqueue, struct process, list); // readyqueue에서 가져옴
-		list_for_each_entry_safe(pre, tmp, &readyqueue, list) // readque에 들어있는 모든걸 확인
-		{
-			if ((pre->lifespan - pre->age) < (next->lifespan - next->age)) // readque에서 가져온 것보다 짧은 시간이 존재한다면
-			{	
-				list_move_tail(&pre->list, &readyqueue);
-				pre->status = PROCESS_READY;
-				next = pre; // next를 pre로 바꿔준다.
+	if(!list_empty(&readyqueue)){
+		next = list_first_entry(&readyqueue,struct process,list);
+		list_for_each_entry(tmp,&readyqueue,list){
+			if(tmp->lifespan < next->lifespan){
+				next = tmp;
 			}
+			
 		}
-
 		list_del_init(&next->list);
 	}
+// stcf_next:
+	// if(!list_empty(&readyqueue)){
+	// 	// next = tmp;
+	// 	printf("tmplife: %d\n",tmp->lifespan);
+	// 	list_del_init(&next->list);
+	// }
 
 	return next;
 }
@@ -343,8 +351,8 @@ static struct process *rr_schedule(void)
 	 */
 	struct process *next = NULL;
 	// int next_age = 0;
-	struct process *rr = NULL;
-	struct process *tmp = NULL;
+	// struct process *rr = NULL;
+	// struct process *tmp = NULL;
 	// struct scheduler *rr_sched = NULL;
 	// struct process *tmp = NULL;
 
@@ -368,11 +376,8 @@ pick_next:
 	if (!list_empty(&readyqueue))
 	{
 
-		next = list_first_entry(&readyqueue, struct process, list);
-		list_for_each_entry_safe(rr,tmp ,&readyqueue, list)
-		{	
-			list_del_init(&next->list);
-		}
+		// list_for_each()
+		
 
 	}
 
