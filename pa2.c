@@ -353,7 +353,7 @@ static struct process *rr_schedule(void)
 	}
 
 	if (current->age < current->lifespan)
-	{
+	{ // 매번 schedule될때마다 readqueue 뒤쪽으로 옮긴다.
 		list_move_tail(&current->list, &readyqueue);
 		goto pick_next;
 	}
@@ -423,50 +423,49 @@ static struct process *prio_schedule(void)
 {
 	struct process *next = NULL;
 	struct process *tmp = NULL;
-	
+
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
 	// prio는 preemptive prio가 높을 수록 먼저시행, resource를 먼저 풀어줘야된다.
 	// pid를 통해서 지금 실행중인것을 control해야되는데 . 왜안돼
 	if (!current || current->status == PROCESS_BLOCKED)
-	{	
+	{
 		goto pick_next;
 	}
 
-
 	if (current->age < current->lifespan)
-	{	
-		list_for_each_entry(tmp,&readyqueue,list){
-		if(current->pid != tmp->pid){
-			list_add(&current->list,&readyqueue);
-			goto pick_next;
+	{
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			if (current->pid != tmp->pid)
+			{
+				list_add(&current->list, &readyqueue);
+				goto pick_next;
+			}
+			else
+			{
+				list_del_init(&current->list);
+			}
 		}
-		else{
-			list_del_init(&current->list);
-		}
-		
-	}
 		return current;
 	}
-	
+
 pick_next:
 	// readyqueue에서 scheduleing을 해준 후 process를 선택한다.
 	if (!list_empty(&readyqueue))
 	{
 		next = list_first_entry(&readyqueue, struct process, list);
-		
+
 		list_for_each_entry(tmp, &readyqueue, list)
-		{		
-			
+		{
+
 			if (tmp->prio > next->prio)
-			{	
+			{
 				next = tmp;
 			}
 		}
 		list_del_init(&next->list);
 	}
-	
-
 
 	return next;
 }
@@ -486,11 +485,99 @@ struct scheduler prio_scheduler = {
 /***********************************************************************
  * Priority scheduler with aging
  ***********************************************************************/
+static bool pa_acquire(int resource_id) // process가 resource를 차지하겠다 내놔라!!!ㄴ
+{
+	struct resource *r = resources + resource_id; // reource_id는 1~16까지 아무거나
+	if (!r->owner)
+	{
+		// current가 현재 resource의 owner이다.
+		r->owner = current;
+		return true;
+	}
+	// resource가 필요로 하는 process에게 갔다.
+	// blocked상태는 waitqueue로 들어가는 과정이다. 현재 process가 blocked상태로 들어가고
+	current->status = PROCESS_BLOCKED;
+	// currentprocess를 waitqueue에 넣어 놓는다.
+	list_add_tail(&current->list, &r->waitqueue);
+	return false;
+}
+
+
+static void pa_release(int resource_id)
+{
+	struct resource *r = resources + resource_id;
+	struct process *tmp = NULL;
+	assert(r->owner == current);
+	r->owner = NULL;
+	if (!list_empty(&r->waitqueue))
+	{
+		struct process *waiter = list_first_entry(&r->waitqueue, struct process, list);
+		list_for_each_entry(tmp, &r->waitqueue, list)
+		{
+			if (tmp->prio > waiter->prio)
+			{	
+				waiter = tmp;
+			}
+		}
+		// process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
+		assert(waiter->status == PROCESS_BLOCKED);
+		list_del_init(&waiter->list);
+		waiter->status = PROCESS_READY;
+		list_add_tail(&waiter->list, &readyqueue);
+	}
+}
+
+
+static struct process *pa_schedule(void)
+{
+	/**
+	 * Implement your own SJF scheduler here.
+	 */
+	struct process *next = NULL;
+	struct process *tmp = NULL;
+
+	/* You may inspect the situation by calling dump_status() at any time */
+	// dump_status();
+	// pa는 preemptive 하다, policy는 rr기반 + waitqueue에 들어가있을때마다 prio를 1씩 올려준다.스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기
+	if (!current || current->status == PROCESS_BLOCKED)
+	{
+		goto pick_next;
+	}
+
+	if (current->age < current->lifespan)
+	{
+		list_move_tail(&current->list, &readyqueue);
+		goto pick_next;
+	}
+
+pick_next:
+
+	if (!list_empty(&readyqueue))
+	{
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			
+			if (tmp->prio > next->prio)
+			{	
+				
+				printf("tmp prio : %d\n",tmp->prio);
+				next = tmp;
+			}
+		}
+		list_del_init(&next->list);
+	}
+
+	return next;
+}
 struct scheduler pa_scheduler = {
 	.name = "Priority + aging",
 	/**
 	 * Ditto
 	 */
+	.acquire = pa_acquire,
+	.release = pa_release,
+	.schedule = pa_schedule,
 };
 
 /***********************************************************************
