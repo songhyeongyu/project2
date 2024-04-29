@@ -381,37 +381,17 @@ struct scheduler rr_scheduler = {
 static bool prio_acquire(int resource_id) // process가 resource를 차지하겠다 내놔라!!!ㄴ
 {
 	struct resource *r = resources + resource_id; // reource_id는 1~16까지 아무거나
-
 	if (!r->owner)
 	{
-		/* This resource is not owned by any one. Take it! */
-		//current가 현재 resource의 owner이다. 
+		// current가 현재 resource의 owner이다.
 		r->owner = current;
 		return true;
 	}
-
-	/* OK, this resource is taken by @r->owner. */
-	//resource가 필요로 하는 process에게 갔다.
-
-	/* Update the current process state */
-
-	//blocked상태는 waitqueue로 들어가는 과정이다. 현재 process가 blocked상태로 들어가고
-	if(r->owner){
-		current->status = PROCESS_BLOCKED;
-	}
-	else{
-		current->status = PROCESS_RUNNING;
-	}
-	
-	/* And append current to waitqueue */
-	//currentprocess를 waitqueue에 넣어 놓는다.
+	// resource가 필요로 하는 process에게 갔다.
+	// blocked상태는 waitqueue로 들어가는 과정이다. 현재 process가 blocked상태로 들어가고
+	current->status = PROCESS_BLOCKED;
+	// currentprocess를 waitqueue에 넣어 놓는다.
 	list_add_tail(&current->list, &r->waitqueue);
-
-	/**
-	 * And return false to indicate the resource is not available.
-	 * The scheduler framework will soon call schedule() function to
-	 * schedule out current and to pick the next process to run.
-	 */
 	return false;
 }
 
@@ -419,81 +399,74 @@ static void prio_release(int resource_id)
 {
 	struct resource *r = resources + resource_id;
 	struct process *tmp = NULL;
-	
-	/* Ensure that the owner process is releasing the resource */
 	assert(r->owner == current);
-
-	/* Un-own this resource */
 	r->owner = NULL;
-
-	/* Let's wake up ONE waiter (if exists) that came first */
 	if (!list_empty(&r->waitqueue))
 	{
 		struct process *waiter = list_first_entry(&r->waitqueue, struct process, list);
-		list_for_each_entry(tmp,&r->waitqueue,list){
-			if(tmp->prio > waiter->prio){
+		list_for_each_entry(tmp, &r->waitqueue, list)
+		{
+			if (tmp->prio > waiter->prio)
+			{
 				waiter = tmp;
 			}
 		}
 
-		/** -
-		 * Ensure the waiter is in the wait status 
-		 * process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
-		 */
+		// process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
 		assert(waiter->status == PROCESS_BLOCKED);
-
-		/**
-		 * Take out the waiter from the waiting queue. Note we use
-		 * list_del_init() over list_del() to maintain the list head tidy
-		 * (otherwise, the framework will complain on the list head
-		 * when the process exits).
-		 */
 		list_del_init(&waiter->list);
-
-		/* Update the process status */
 		waiter->status = PROCESS_READY;
-
-		/**
-		 * Put the waiter process into ready queue. The framework will
-		 * do the rest.
-		 */
 		list_add_tail(&waiter->list, &readyqueue);
 	}
 }
 static struct process *prio_schedule(void)
 {
-	/**
-	 * Implement your own SJF scheduler here.
-	 */
 	struct process *next = NULL;
 	struct process *tmp = NULL;
 	
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
-	//prio는 preemptive prio가 높을 수록 먼저시행, resource를 먼저 풀어줘야된다.
-
+	// prio는 preemptive prio가 높을 수록 먼저시행, resource를 먼저 풀어줘야된다.
+	// pid를 통해서 지금 실행중인것을 control해야되는데 . 왜안돼
 	if (!current || current->status == PROCESS_BLOCKED)
-	{
+	{	
 		goto pick_next;
 	}
-	
+
+
 	if (current->age < current->lifespan)
-	{
+	{	
+		list_for_each_entry(tmp,&readyqueue,list){
+		if(current->pid != tmp->pid){
+			list_add(&current->list,&readyqueue);
+			goto pick_next;
+		}
+		else{
+			list_del_init(&current->list);
+		}
+		
+	}
 		return current;
 	}
-
+	
 pick_next:
-	//readyqueue에서 scheduleing을 해준 후 process를 선택한다.
+	// readyqueue에서 scheduleing을 해준 후 process를 선택한다.
 	if (!list_empty(&readyqueue))
-	{	
+	{
 		next = list_first_entry(&readyqueue, struct process, list);
-		list_for_each_entry(tmp,&readyqueue,list){
-			if(tmp->prio > next->prio){
+		
+		list_for_each_entry(tmp, &readyqueue, list)
+		{		
+			
+			if (tmp->prio > next->prio)
+			{	
 				next = tmp;
 			}
 		}
 		list_del_init(&next->list);
 	}
+	
+
 
 	return next;
 }
