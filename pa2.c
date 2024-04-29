@@ -546,7 +546,17 @@ static struct process *pa_schedule(void)
 
 	if (current->age < current->lifespan)
 	{
-		list_move_tail(&current->list, &readyqueue);
+		list_add_tail(&current->list, &readyqueue);
+		list_for_each_entry(tmp,&readyqueue,list){
+			if(current->pid != tmp->pid){
+				tmp->prio++;
+			}
+			else{
+				tmp->prio = tmp->prio_orig;
+			}
+		}
+		// list_del_init(&current->list);
+		// return current;
 		goto pick_next;
 	}
 
@@ -557,13 +567,12 @@ pick_next:
 		next = list_first_entry(&readyqueue, struct process, list);
 		list_for_each_entry(tmp, &readyqueue, list)
 		{
-			
 			if (tmp->prio > next->prio)
 			{	
-				
-				printf("tmp prio : %d\n",tmp->prio);
 				next = tmp;
 			}
+			
+			
 		}
 		list_del_init(&next->list);
 	}
