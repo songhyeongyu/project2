@@ -573,7 +573,9 @@ pick_next:
 		list_for_each_entry(tmp, &readyqueue, list)
 		{	
 			// printf("af +1 tmppid prio: %d %d\n",tmp->pid,tmp->prio);
-			if (tmp->prio > next->prio) // prio가 높은게 뽑히게 해라 같은 prio가 나오면 ex) 20 20 next = 먼저 나온게 된다.
+			if (tmp->prio > next->prio) 
+			// prio가 높은게 뽑히게 해라 같은 prio가 나오면-> ex) 20 20 next = 먼저reayqueue에 존재하는게 나온다
+			//rr정책을 사용해서 최근에 사용된 process는 readyqueue마지막에 붙어있다.
 			{	
 				// printf("tmp pid prio: %d %d\n",tmp->pid,tmp->prio);
 				next = tmp;
@@ -598,11 +600,106 @@ struct scheduler pa_scheduler = {
 /***********************************************************************
  * Priority scheduler with priority ceiling protocol
  ***********************************************************************/
+static bool pcp_acquire(int resource_id) // process가 resource를 차지하겠다 내놔라!!!ㄴ
+{
+	struct resource *r = resources + resource_id; // reource_id는 1~16까지 아무거나
+	if (!r->owner)
+	{
+		r->owner = current;
+		r->owner->prio = MAX_PRIO;
+		// printf("r owner pid: %d\n",r->owner->pid);
+		return true;
+	}
+
+	
+
+	current->status = PROCESS_BLOCKED;
+	list_add_tail(&current->list, &r->waitqueue);
+	return false;
+}
+
+static void pcp_release(int resource_id)
+{
+	struct resource *r = resources + resource_id;
+	struct process *tmp = NULL;
+	assert(r->owner == current);
+	
+	current->prio = current->prio_orig;
+	// printf("currentpid prio: %d %d\n",current->pid,current->prio);
+	// printf("rowner pid prio: %d %d\n",r->owner->pid,current->prio);
+	r->owner = NULL;
+
+	if (!list_empty(&r->waitqueue))
+	{
+		struct process *waiter = list_first_entry(&r->waitqueue, struct process, list);
+		list_for_each_entry(tmp, &r->waitqueue, list)
+		{
+			if (tmp->prio > waiter->prio)
+			{
+				waiter = tmp;
+			}
+		}
+		// process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
+		assert(waiter->status == PROCESS_BLOCKED);
+		// printf("realase rowner prio:%d\n",r->owner->prio);
+		
+		list_del_init(&waiter->list);
+		waiter->status = PROCESS_READY;
+		
+		list_add_tail(&waiter->list, &readyqueue);
+	}
+}
+
+static struct process *pcp_schedule(void)
+{
+	/**
+	 * Implement your own SJF scheduler here.
+	 */
+	struct process *next = NULL;
+	struct process *tmp = NULL;
+	// int a = 0;
+
+	/* You may inspect the situation by calling dump_status() at any time */
+	// dump_status();
+	// pcp는 preemptive 하다, policy는 rr기반 + prio를 max_prio까지 올려준다. 스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기 -> 꼬리에 넣는다.
+
+	if (!current || current->status == PROCESS_BLOCKED) //current process가 없거나, current status가 blocked이면 다른걸 집어라
+	{
+		goto pick_next;
+	}
+	// process 1이 acquire을 잡아야 되는데? 왜 3이 먼저잡아버리지?
+
+	if (current->age < current->lifespan) // current가 끝날때 까지 돌아라
+	{	
+			list_move_tail(&current->list,&readyqueue);
+			goto pick_next;
+	}
+
+pick_next:
+
+	if (!list_empty(&readyqueue))
+	{
+		next = list_first_entry(&readyqueue,struct process,list);
+		list_for_each_entry(tmp,&readyqueue,list){
+			if(tmp->prio > next->prio)
+			{
+				next = tmp;
+			}
+			// printf("tmp :%d\n",tmp->prio);
+		}
+		list_del_init(&next->list);
+	}
+
+	return next;
+}
 struct scheduler pcp_scheduler = {
 	.name = "Priority + PCP Protocol",
 	/**
 	 * Ditto
 	 */
+	.acquire = pcp_acquire,
+	.release = pcp_release,
+	.schedule = pcp_schedule,
 };
 
 /***********************************************************************
