@@ -502,7 +502,6 @@ static bool pa_acquire(int resource_id) // process가 resource를 차지하겠�
 	return false;
 }
 
-
 static void pa_release(int resource_id)
 {
 	struct resource *r = resources + resource_id;
@@ -515,7 +514,7 @@ static void pa_release(int resource_id)
 		list_for_each_entry(tmp, &r->waitqueue, list)
 		{
 			if (tmp->prio > waiter->prio)
-			{	
+			{
 				waiter = tmp;
 			}
 		}
@@ -527,7 +526,6 @@ static void pa_release(int resource_id)
 	}
 }
 
-
 static struct process *pa_schedule(void)
 {
 	/**
@@ -535,45 +533,53 @@ static struct process *pa_schedule(void)
 	 */
 	struct process *next = NULL;
 	struct process *tmp = NULL;
+	// int a = 0;
 
 	/* You may inspect the situation by calling dump_status() at any time */
 	// dump_status();
-	// pa는 preemptive 하다, policy는 rr기반 + waitqueue에 들어가있을때마다 prio를 1씩 올려준다.스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기
-	if (!current || current->status == PROCESS_BLOCKED)
+	// pa는 preemptive 하다, policy는 rr기반 스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기
+
+	if (!current || current->status == PROCESS_BLOCKED) //current process가 없거나, current status가 blocked이면 다른걸 집어라
 	{
+		
 		goto pick_next;
 	}
-
-	if (current->age < current->lifespan)
-	{
-		list_add_tail(&current->list, &readyqueue);
+	//picK_next가 끝나면
+	//현재 prio를 +1을 시켜주면서 process가 current가 될때 
+	if(current){
+		//readyqueue에는 current process를 제외하고 다른 Process들이 존재한다. 따라서 tmp를 올려주면 current를 제외한 process들의 prio 증가
 		list_for_each_entry(tmp,&readyqueue,list){
-			if(current->pid != tmp->pid){
-				tmp->prio++;
-			}
-			else{
-				tmp->prio = tmp->prio_orig;
-			}
+			// printf("be +1:%d %d\n",tmp->pid,tmp->prio);
+			tmp->prio++;
+			
+			//readyqueue에는 current process가 존재하지않는다.
+		
 		}
-		// list_del_init(&current->list);
-		// return current;
-		goto pick_next;
+		// printf("current:%d\n",current->pid);
+	}
+
+	if (current->age < current->lifespan) // current가 끝날때 까지 돌아라
+	{	
+		list_move_tail(&current->list, &readyqueue); // 현재거를 뒤로 옮기고 -> rr방식
+		goto pick_next; // 다음거를 집어라
 	}
 
 pick_next:
 
 	if (!list_empty(&readyqueue))
 	{
-		next = list_first_entry(&readyqueue, struct process, list);
+		next = list_first_entry(&readyqueue,struct process,list);
+		// printf("nextpid prio: %d %d\n",next->pid,next->prio);
 		list_for_each_entry(tmp, &readyqueue, list)
-		{
-			if (tmp->prio > next->prio)
+		{	
+			// printf("af +1 tmppid prio: %d %d\n",tmp->pid,tmp->prio);
+			if (tmp->prio > next->prio) // prio가 높은게 뽑히게 해라 같은 prio가 나오면 ex) 20 20 next = 먼저 나온게 된다.
 			{	
+				// printf("tmp pid prio: %d %d\n",tmp->pid,tmp->prio);
 				next = tmp;
 			}
-			
-			
 		}
+		next->prio = next->prio_orig; //next로 뽑힌 prio를 prio_orig로 만들어준다.
 		list_del_init(&next->list);
 	}
 
