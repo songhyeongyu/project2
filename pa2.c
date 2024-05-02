@@ -539,49 +539,50 @@ static struct process *pa_schedule(void)
 	// dump_status();
 	// pa는 preemptive 하다, policy는 rr기반 스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기
 
-	if (!current || current->status == PROCESS_BLOCKED) //current process가 없거나, current status가 blocked이면 다른걸 집어라
+	if (!current || current->status == PROCESS_BLOCKED) // current process가 없거나, current status가 blocked이면 다른걸 집어라
 	{
-		
+
 		goto pick_next;
 	}
-	//picK_next가 끝나면
-	//현재 prio를 +1을 시켜주면서 process가 current가 될때 
-	if(current){
-		//readyqueue에는 current process를 제외하고 다른 Process들이 존재한다. 따라서 tmp를 올려주면 current를 제외한 process들의 prio 증가
-		list_for_each_entry(tmp,&readyqueue,list){
+	// picK_next가 끝나면
+	// 현재 prio를 +1을 시켜주면서 process가 current가 될때
+	if (current)
+	{
+		// readyqueue에는 current process를 제외하고 다른 Process들이 존재한다. 따라서 tmp를 올려주면 current를 제외한 process들의 prio 증가
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
 			// printf("be +1:%d %d\n",tmp->pid,tmp->prio);
 			tmp->prio++;
-			
-			//readyqueue에는 current process가 존재하지않는다.
-		
+
+			// readyqueue에는 current process가 존재하지않는다.
 		}
 		// printf("current:%d\n",current->pid);
 	}
 
 	if (current->age < current->lifespan) // current가 끝날때 까지 돌아라
-	{	
+	{
 		list_move_tail(&current->list, &readyqueue); // 현재거를 뒤로 옮기고 -> rr방식
-		goto pick_next; // 다음거를 집어라
+		goto pick_next;								 // 다음거를 집어라
 	}
 
 pick_next:
 
 	if (!list_empty(&readyqueue))
 	{
-		next = list_first_entry(&readyqueue,struct process,list);
+		next = list_first_entry(&readyqueue, struct process, list);
 		// printf("nextpid prio: %d %d\n",next->pid,next->prio);
 		list_for_each_entry(tmp, &readyqueue, list)
-		{	
+		{
 			// printf("af +1 tmppid prio: %d %d\n",tmp->pid,tmp->prio);
-			if (tmp->prio > next->prio) 
+			if (tmp->prio > next->prio)
 			// prio가 높은게 뽑히게 해라 같은 prio가 나오면-> ex) 20 20 next = 먼저reayqueue에 존재하는게 나온다
-			//rr정책을 사용해서 최근에 사용된 process는 readyqueue마지막에 붙어있다.
-			{	
+			// rr정책을 사용해서 최근에 사용된 process는 readyqueue마지막에 붙어있다.
+			{
 				// printf("tmp pid prio: %d %d\n",tmp->pid,tmp->prio);
 				next = tmp;
 			}
 		}
-		next->prio = next->prio_orig; //next로 뽑힌 prio를 prio_orig로 만들어준다.
+		next->prio = next->prio_orig; // next로 뽑힌 prio를 prio_orig로 만들어준다.
 		list_del_init(&next->list);
 	}
 
@@ -606,12 +607,10 @@ static bool pcp_acquire(int resource_id) // process가 resource를 차지하겠�
 	if (!r->owner)
 	{
 		r->owner = current;
-		r->owner->prio = MAX_PRIO;
+		r->owner->prio = MAX_PRIO; // prio를 max로 올려준다.
 		// printf("r owner pid: %d\n",r->owner->pid);
 		return true;
 	}
-
-	
 
 	current->status = PROCESS_BLOCKED;
 	list_add_tail(&current->list, &r->waitqueue);
@@ -623,8 +622,8 @@ static void pcp_release(int resource_id)
 	struct resource *r = resources + resource_id;
 	struct process *tmp = NULL;
 	assert(r->owner == current);
-	
-	current->prio = current->prio_orig;
+
+	current->prio = current->prio_orig; // release를 빠져나올때 current를 origin으로 바꿔준다.
 	// printf("currentpid prio: %d %d\n",current->pid,current->prio);
 	// printf("rowner pid prio: %d %d\n",r->owner->pid,current->prio);
 	r->owner = NULL;
@@ -642,10 +641,10 @@ static void pcp_release(int resource_id)
 		// process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
 		assert(waiter->status == PROCESS_BLOCKED);
 		// printf("realase rowner prio:%d\n",r->owner->prio);
-		
+
 		list_del_init(&waiter->list);
 		waiter->status = PROCESS_READY;
-		
+
 		list_add_tail(&waiter->list, &readyqueue);
 	}
 }
@@ -663,29 +662,29 @@ static struct process *pcp_schedule(void)
 	// dump_status();
 	// pcp는 preemptive 하다, policy는 rr기반 + prio를 max_prio까지 올려준다. 스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기 -> 꼬리에 넣는다.
 
-	if (!current || current->status == PROCESS_BLOCKED) //current process가 없거나, current status가 blocked이면 다른걸 집어라
+	if (!current || current->status == PROCESS_BLOCKED) // current process가 없거나, current status가 blocked이면 다른걸 집어라
 	{
 		goto pick_next;
 	}
 	// process 1이 acquire을 잡아야 되는데? 왜 3이 먼저잡아버리지?
 
 	if (current->age < current->lifespan) // current가 끝날때 까지 돌아라
-	{	
-			list_move_tail(&current->list,&readyqueue);
-			goto pick_next;
+	{
+		list_move_tail(&current->list, &readyqueue);
+		goto pick_next;
 	}
 
 pick_next:
 
 	if (!list_empty(&readyqueue))
 	{
-		next = list_first_entry(&readyqueue,struct process,list);
-		list_for_each_entry(tmp,&readyqueue,list){
-			if(tmp->prio > next->prio)
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			if (tmp->prio > next->prio)
 			{
 				next = tmp;
 			}
-			// printf("tmp :%d\n",tmp->prio);
 		}
 		list_del_init(&next->list);
 	}
@@ -705,9 +704,117 @@ struct scheduler pcp_scheduler = {
 /***********************************************************************
  * Priority scheduler with priority inheritance protocol
  ***********************************************************************/
+static bool pip_acquire(int resource_id) // process가 resource를 차지하겠다 내놔라!!!ㄴ
+{
+	struct resource *r = resources + resource_id; // reource_id는 1~16까지 아무거나
+
+	struct process *tmp = NULL;
+	
+	if (!r->owner)
+	{	
+		r->owner = current;
+		
+		return true;
+	}
+	
+
+	current->status = PROCESS_BLOCKED;
+	list_add_tail(&current->list, &r->waitqueue);
+	// printf("rower: %d %d current : %d %d\n",r->owner->pid,r->owner->prio,current->pid,current->prio);
+	list_for_each_entry(tmp,&r->waitqueue,list){
+			// printf("before waitqueue: %d %d\n",tmp->pid,tmp->prio);
+			r->owner->prio += current->prio;
+		}
+	return false;
+}
+
+static void pip_release(int resource_id)
+{
+	struct resource *r = resources + resource_id;
+	struct process *tmp = NULL;
+	assert(r->owner == current);
+
+	current->prio = current->prio_orig; // release를 빠져나올때 current를 origin으로 바꿔준다.
+	// printf("currentpid prio: %d %d\n",current->pid,current->prio);
+	// printf("rowner pid prio: %d %d\n",r->owner->pid,current->prio);
+	r->owner = NULL;
+
+	if (!list_empty(&r->waitqueue))
+	{
+		struct process *waiter = list_first_entry(&r->waitqueue, struct process, list);
+		list_for_each_entry(tmp, &r->waitqueue, list)
+		{	
+			
+
+			if (tmp->prio > waiter->prio)
+			{
+				waiter = tmp;
+			}
+		}
+		// process의 resource가 있으면 waitqueue에 들어가서 기다려야 된다?
+		assert(waiter->status == PROCESS_BLOCKED);
+		// printf("realase rowner prio:%d\n",r->owner->prio);
+
+		list_del_init(&waiter->list);
+		waiter->status = PROCESS_READY;
+
+		list_add_tail(&waiter->list, &readyqueue);
+	}
+}
+
+static struct process *pip_schedule(void)
+{
+	/**
+	 * Implement your own SJF scheduler here.
+	 */
+	struct process *next = NULL;
+	struct process *tmp = NULL;
+	// int a = 0;
+
+	/* You may inspect the situation by calling dump_status() at any time */
+	// dump_status();
+	// pip는 preemptive 하다, policy는 rr기반 + prio를 원래 수준으로 유지하다가 현재 Process보다 높은
+	//process가 resource를 필요로 한다면 prio를 현재 prio만큼 올려준다. 스케줄될때마다(실행될때마다) 다른 프로세스 다시 readyqueue에 넣기 -> 꼬리에 넣는다.
+
+	if (!current || current->status == PROCESS_BLOCKED) // current process가 없거나, current status가 blocked이면 다른걸 집어라
+	{
+		goto pick_next;
+	}
+	// process 1이 acquire을 잡아야 되는데? 왜 3이 먼저잡아버리지?
+
+	if (current->age < current->lifespan) // current가 끝날때 까지 돌아라
+	{
+		list_move_tail(&current->list, &readyqueue);
+		goto pick_next;
+	}
+
+pick_next:
+
+	if (!list_empty(&readyqueue))
+	{
+		next = list_first_entry(&readyqueue, struct process, list);
+		list_for_each_entry(tmp, &readyqueue, list)
+		{
+			if (tmp->prio > next->prio)
+			{
+				next = tmp;
+			}
+			
+		}
+		list_del_init(&next->list);
+		
+	}
+
+	return next;
+}
 struct scheduler pip_scheduler = {
 	.name = "Priority + PIP Protocol",
 	/**
 	 * Ditto
 	 */
+	.acquire = pip_acquire,
+	.release = pip_release,
+	.schedule = pip_schedule,
+
+
 };
